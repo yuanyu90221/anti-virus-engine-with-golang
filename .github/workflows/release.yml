@@ -39,14 +39,9 @@ jobs:
           restore-keys: |
             pants-2.30.0-
 
-      - name: Set up Python for Pants
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-
       - name: Install Pants
         run: |
-          curl -fsSL https://static.pantsbuild.org/setup/pants -o ./pants
+          curl -fsSL https://pantsbuild.github.io/setup/pants -o ./pants
           chmod +x ./pants
 
       - name: Build binary

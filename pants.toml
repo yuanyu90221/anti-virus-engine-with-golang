@@ -6,4 +6,4 @@ backend_packages = ["pants.backend.experimental.go"]
 root_patterns = ["/"]
 
 [golang]
-go_search_paths = ["/home/yuanyu/.gvm/gos/go1.25.0/bin"]
+go_search_paths = ["<PATH>"]
