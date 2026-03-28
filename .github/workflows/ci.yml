@@ -26,18 +26,10 @@ jobs:
           restore-keys: |
             go-mod-
 
-      - name: Cache Pants
-        uses: actions/cache@v4
+      - name: Initialize Pants
+        uses: pantsbuild/actions/init-pants@v10
         with:
-          path: ~/.cache/pants
-          key: pants-2.30.0-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            pants-2.30.0-
-
-      - name: Install Pants
-        run: |
-          curl -fsSL https://pantsbuild.github.io/setup/pants -o ./pants
-          chmod +x ./pants
+          named-caches-hash: ${{ hashFiles('go.sum') }}
 
       - name: Run tests
         run: |
