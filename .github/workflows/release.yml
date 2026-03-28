@@ -38,7 +38,7 @@ jobs:
 
       - name: Build binary
         run: |
-          ./pants package cmd/avengine:
+          pants package cmd/avengine:
 
       - name: Rename artifact
         run: |

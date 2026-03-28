@@ -33,8 +33,8 @@ jobs:
 
       - name: Run tests
         run: |
-          ./pants test ::
+          pants test ::
 
       - name: Build binary
         run: |
-          ./pants package cmd/avengine:
+          pants package cmd/avengine:
