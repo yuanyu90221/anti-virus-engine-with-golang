@@ -1,0 +1,9 @@
+[GLOBAL]
+pants_version = "2.30.0"
+backend_packages = ["pants.backend.experimental.go"]
+
+[source]
+root_patterns = ["/"]
+
+[golang]
+go_search_paths = ["/home/yuanyu/.gvm/gos/go1.25.0/bin"]

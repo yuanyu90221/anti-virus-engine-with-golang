@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-mod-
+
+      - name: Cache Pants
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pants
+          key: pants-2.30.0-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            pants-2.30.0-
+
+      - name: Install Pants
+        run: |
+          curl -fsSL https://static.pantsbuild.org/setup/pants -o ./pants
+          chmod +x ./pants
+
+      - name: Run tests
+        run: |
+          ./pants test ::
+
+      - name: Build binary
+        run: |
+          ./pants package cmd/avengine:

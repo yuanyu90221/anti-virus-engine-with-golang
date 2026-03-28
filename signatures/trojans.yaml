@@ -1,0 +1,12 @@
+version: "1.0"
+category: trojan
+updated: "2024-01-15"
+signatures:
+  - sha256: "027cc450ef5f8c5f653329641ec1fed91f694e0d229928963b30f6b0d7d3a745"
+    name: "NotPetya"
+    severity: critical
+    added: "2024-01-15"
+  - sha256: "9a024b9ef95a1ed9e5acba3e2fe2427395e866c42b5bce04d35ca2cefd8d2e4d"
+    name: "Mirai"
+    severity: high
+    added: "2024-01-15"

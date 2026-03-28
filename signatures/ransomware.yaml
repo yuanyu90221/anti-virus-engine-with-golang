@@ -1,0 +1,12 @@
+version: "1.0"
+category: ransomware
+updated: "2024-01-15"
+signatures:
+  - sha256: "91a3f84e7eef3bd87e6217221fbda4f100d4686c65bff98b3737c9c471aef013"
+    name: "FakeRansomware.Test"
+    severity: critical
+    added: "2024-01-15"
+  - sha256: "24d004a104d4d54034dbcffc2a4b19a11f39008a575aa614ea04703480b1022c"
+    name: "WannaCry"
+    severity: critical
+    added: "2024-01-15"
