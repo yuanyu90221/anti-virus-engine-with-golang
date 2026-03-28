@@ -84,6 +84,10 @@ testdata/
 2. 大小過濾：`MaxFileSizeB > 0` 時略過超大檔案，避免長時間阻塞
 3. `hasher.HashFile` 計算 SHA256
 4. `db.Lookup` 查詢特徵索引，命中則加入 `Detections`
+5. 若 `Options.OnProgress` 不為 nil，每處理完一個檔案後回呼通知
+
+`CountFiles(opts Options) (int64, error)` 可在掃描前對目標目錄做快速預計數，
+套用相同的過濾條件，回傳符合掃描條件的檔案總數，供進度百分比計算使用。
 
 ### `internal/reporter`
 
@@ -132,6 +136,23 @@ testdata/
           └─ json → camelCase JSON
 
   os.Exit(0 | 1 | 2)
+
+[進度顯示（text 模式 + TTY）]
+
+  scanner.CountFiles(opts)          ← 掃描前預計總數
+          │
+          ▼
+  scanner.Scan(db, opts)
+    └─ OnProgress(path, count)      ← 每檔回呼
+          │
+          ▼
+  stderr: \r[N/Total] (XX%) path   ← 同行覆寫，不影響 stdout
+          │
+          ▼（掃描完成）
+  stderr: \r\033[K                  ← 清除進度列
+          │
+          ▼
+  stdout: 報告輸出
 ```
 
 ---
@@ -146,8 +167,8 @@ testdata/
 ### 建置
 
 ```bash
-# （選擇性）下載 Pants 啟動腳本至本機
-curl -fsSL https://static.pantsbuild.org/setup/pants -o ./pants && chmod +x ./pants
+# （選擇性）下載 Pants scie-pants 啟動器至本機
+curl -fsSL https://pantsbuild.github.io/setup/pants -o ./pants && chmod +x ./pants
 
 # 安裝相依套件
 go mod download
@@ -165,16 +186,24 @@ pants package cmd/avengine:
 ### 執行
 
 ```bash
-# 掃描目錄（文字輸出）
+# 掃描目錄（文字輸出，終端機下自動顯示即時進度）
 ./dist/cmd.avengine/bin scan --dir ./testdata --sigs ./signatures
 
-# JSON 輸出（適合 CI/CD 整合）
+# JSON 輸出（適合 CI/CD 整合，不顯示進度）
 ./dist/cmd.avengine/bin scan --dir ./testdata --sigs ./signatures --output json
 
 # 略過超過 10 MB 的檔案，並追蹤符號連結
 ./dist/cmd.avengine/bin scan --dir /path/to/scan --sigs ./signatures \
   --max-size 10 --follow-links
 ```
+
+**即時進度顯示**：在互動式終端機（TTY）以 `text` 模式執行時，掃描過程會於 stderr 顯示單行進度，格式為：
+
+```
+[3/128] (2%) /path/to/current/file.bin
+```
+
+掃描完成後進度列自動清除，不影響 stdout 的報告輸出。JSON 模式或非 TTY 環境（如 CI pipeline）下不顯示進度。
 
 ### 所有旗標
 

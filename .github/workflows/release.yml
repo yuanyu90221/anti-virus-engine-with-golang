@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      PANTS_CONCURRENT: "True"
 
     steps:
       - name: Checkout

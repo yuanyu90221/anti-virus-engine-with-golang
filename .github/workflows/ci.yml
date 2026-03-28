@@ -8,6 +8,8 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    env:
+      PANTS_CONCURRENT: "True"
 
     steps:
       - name: Checkout

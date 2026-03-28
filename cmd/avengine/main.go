@@ -22,6 +22,16 @@ import (
 	"github.com/yuanyu90221/avengine/internal/sigdb"
 )
 
+// isTerminal 回報 f 是否連接到互動式終端機（TTY）。
+// 使用 os.ModeCharDevice 旗標判斷，相容 Linux / macOS，無需外部套件。
+func isTerminal(f *os.File) bool {
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
 func main() {
 	// 只支援 "scan" 子命令；未來若需擴充（如 "update-sigs"），可在此新增 switch
 	if len(os.Args) < 2 || os.Args[1] != "scan" {
@@ -74,15 +84,41 @@ func main() {
 		maxBytes = int64(*maxSizeMB) * 1024 * 1024
 	}
 
+	// 僅在 text 模式且 stderr 為 TTY 時顯示進度（避免污染 json pipeline）
+	showProgress := *output == "text" && isTerminal(os.Stderr)
+	var onProgress scanner.ProgressFunc
+	if showProgress {
+		scanOpts := scanner.Options{Dir: *dir, FollowLinks: *followLinks, MaxFileSizeB: maxBytes}
+		total, _ := scanner.CountFiles(scanOpts)
+		onProgress = func(path string, count int64) {
+			display := path
+			if len(display) > 70 {
+				display = "..." + display[len(display)-67:]
+			}
+			if total > 0 {
+				pct := count * 100 / total
+				fmt.Fprintf(os.Stderr, "\r[%d/%d] (%d%%) %s", count, total, pct, display)
+			} else {
+				fmt.Fprintf(os.Stderr, "\r[%d] %s", count, display)
+			}
+		}
+	}
+
 	// 執行掃描：遞迴走訪 --dir，逐檔計算 SHA256 並查詢 db
 	report, err := scanner.Scan(db, scanner.Options{
 		Dir:          *dir,
 		FollowLinks:  *followLinks,
 		MaxFileSizeB: maxBytes,
+		OnProgress:   onProgress,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "scan error: %v\n", err)
 		os.Exit(reporter.ExitError)
+	}
+
+	// 清除進度列，讓報告從乾淨的行開始輸出
+	if showProgress {
+		fmt.Fprint(os.Stderr, "\r\033[K")
 	}
 
 	// 輸出報告至 stdout（與錯誤訊息分離，便於 shell 管線處理）

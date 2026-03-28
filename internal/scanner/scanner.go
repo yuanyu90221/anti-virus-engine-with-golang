@@ -19,11 +19,16 @@ import (
 	"github.com/yuanyu90221/avengine/internal/sigdb"
 )
 
+// ProgressFunc 是掃描進度的回呼型別。
+// path 為當前處理的檔案路徑，count 為已處理的檔案累計數（從 1 開始）。
+type ProgressFunc func(path string, count int64)
+
 // Options 設定單次掃描的行為參數。
 type Options struct {
-	Dir          string // 遞迴掃描的根目錄（必填）
-	FollowLinks  bool   // true = 追蹤符號連結；false = 略過（預防迴圈）
-	MaxFileSizeB int64  // 超過此大小（位元組）的檔案會被略過；0 = 不限制
+	Dir          string       // 遞迴掃描的根目錄（必填）
+	FollowLinks  bool         // true = 追蹤符號連結；false = 略過（預防迴圈）
+	MaxFileSizeB int64        // 超過此大小（位元組）的檔案會被略過；0 = 不限制
+	OnProgress   ProgressFunc // 每處理完一個檔案後呼叫；nil = 不通知
 }
 
 // Detection 記錄一個命中特徵資料庫的檔案。
@@ -47,6 +52,32 @@ type ScanReport struct {
 	SkippedFiles int         // 略過的檔案數
 	StartedAt    time.Time   // 掃描開始時間
 	FinishedAt   time.Time   // 掃描結束時間
+}
+
+// CountFiles 走訪 opts.Dir 並套用相同的過濾條件（FollowLinks、MaxFileSizeB），
+// 回傳符合條件的檔案總數。用於掃描前的預計數以顯示百分比進度。
+func CountFiles(opts Options) (int64, error) {
+	var count int64
+	err := filepath.WalkDir(opts.Dir, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // 略過無法進入的路徑，不中斷計數
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if d.Type()&fs.ModeSymlink != 0 && !opts.FollowLinks {
+			return nil
+		}
+		if opts.MaxFileSizeB > 0 {
+			info, err := d.Info()
+			if err != nil || info.Size() > opts.MaxFileSizeB {
+				return nil
+			}
+		}
+		count++
+		return nil
+	})
+	return count, err
 }
 
 // Scan 遞迴走訪 opts.Dir，對每個符合條件的檔案計算 SHA256 並查詢 db。
@@ -105,6 +136,10 @@ func Scan(db *sigdb.DB, opts Options) (*ScanReport, error) {
 				SHA256:      hash,
 				MatchResult: match,
 			})
+		}
+
+		if opts.OnProgress != nil {
+			opts.OnProgress(path, int64(report.TotalFiles))
 		}
 		return nil
 	})
