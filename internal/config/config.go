@@ -5,8 +5,9 @@ package config
 
 // 預設值常數，集中定義以便日後維護。
 const (
-	DefaultSigsDir = "./signatures" // 特徵 YAML 目錄的預設路徑
-	DefaultOutput  = "text"         // 預設輸出格式：純文字表格
+	DefaultSigsDir     = "./signatures" // 特徵 YAML 目錄的預設路徑
+	DefaultOutput      = "text"         // 預設輸出格式：純文字表格
+	DefaultYARATimeout = 10             // YARA 每個檔案的預設逾時（秒）
 )
 
 // CLIConfig 儲存 `avengine scan` 子命令解析後的所有旗標值。
@@ -25,4 +26,6 @@ type CLIConfig struct {
 	FollowLinks bool
 	MaxSizeMB   int
 	Verbose     bool
+	YARARules   string // --yara-rules：YARA 規則檔案或目錄路徑；空字串 = 停用 YARA
+	YARATimeout int    // --yara-timeout：每個檔案的 YARA 逾時（秒）
 }

@@ -13,13 +13,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/yuanyu90221/avengine/internal/config"
 	"github.com/yuanyu90221/avengine/internal/reporter"
 	"github.com/yuanyu90221/avengine/internal/scanner"
 	"github.com/yuanyu90221/avengine/internal/sigdb"
+	"github.com/yuanyu90221/avengine/internal/yara"
 )
 
 // isTerminal 回報 f 是否連接到互動式終端機（TTY）。
@@ -50,6 +54,8 @@ func main() {
 	followLinks := fs.Bool("follow-links", false, "follow symbolic links")
 	maxSizeMB := fs.Int("max-size", 0, "skip files larger than N MB (0 = no limit)")
 	_ = fs.Bool("verbose", false, "show all scanned files") // 預留旗標，尚未實作詳細模式
+	yaraRules := fs.String("yara-rules", "", "path to YARA rules file or directory (optional)")
+	yaraTimeout := fs.Int("yara-timeout", config.DefaultYARATimeout, "per-file YARA timeout in seconds")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		os.Exit(reporter.ExitError)
@@ -97,12 +103,26 @@ func main() {
 		}
 	}
 
+	// 初始化額外偵測引擎（目前支援 YARA）
+	var extraEngines []scanner.DetectionEngine
+	if *yaraRules != "" {
+		eng, engErr := yara.New(*yaraRules)
+		if engErr != nil {
+			// binary 找不到或規則路徑無效 → 警告後以 hash-only 繼續
+			fmt.Fprintf(os.Stderr, "warning: YARA engine unavailable: %v\n", engErr)
+		} else {
+			extraEngines = append(extraEngines, eng)
+		}
+	}
+
 	// 執行掃描：遞迴走訪 --dir，逐檔計算 SHA256 並查詢 db
-	report, err := scanner.Scan(db, scanner.Options{
+	report, err := scanner.Scan(context.Background(), db, scanner.Options{
 		Dir:          *dir,
 		FollowLinks:  *followLinks,
 		MaxFileSizeB: maxBytes,
 		OnProgress:   onProgress,
+		ExtraEngines: extraEngines,
+		FileTimeout:  time.Duration(*yaraTimeout) * time.Second,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "scan error: %v\n", err)

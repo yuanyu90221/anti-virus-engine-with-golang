@@ -62,8 +62,8 @@ func (textReporter) Write(w io.Writer, r *scanner.ScanReport) error {
 	}
 
 	// 表格標題
-	fmt.Fprintf(w, "%-60s  %-16s  %-30s  %-8s  %-12s\n",
-		"路徑", "SHA256(前16)", "威脅名稱", "嚴重度", "分類")
+	fmt.Fprintf(w, "%-60s  %-16s  %-6s  %-30s  %-8s  %-12s\n",
+		"路徑", "SHA256(前16)", "引擎", "威脅名稱", "嚴重度", "分類")
 	fmt.Fprintf(w, "%s\n", "------------------------------------------------------------------------")
 
 	// SHA256 僅顯示前 16 字元（8 位元組），兼顧可讀性與識別度
@@ -72,8 +72,8 @@ func (textReporter) Write(w io.Writer, r *scanner.ScanReport) error {
 		if len(short) > 16 {
 			short = short[:16]
 		}
-		fmt.Fprintf(w, "%-60s  %-16s  %-30s  %-8s  %-12s\n",
-			d.Path, short, d.Name, d.Severity, d.Category)
+		fmt.Fprintf(w, "%-60s  %-16s  %-6s  %-30s  %-8s  %-12s\n",
+			d.Path, short, d.Engine, d.Name, d.Severity, d.Category)
 	}
 	return nil
 }
@@ -98,6 +98,7 @@ type jsonReport struct {
 type jsonDetection struct {
 	Path     string `json:"path"`
 	SHA256   string `json:"sha256"`
+	Engine   string `json:"engine"`
 	Name     string `json:"name"`
 	Category string `json:"category"`
 	Severity string `json:"severity"`
@@ -111,6 +112,7 @@ func (jsonReporter) Write(w io.Writer, r *scanner.ScanReport) error {
 		jd[i] = jsonDetection{
 			Path:     d.Path,
 			SHA256:   d.SHA256,
+			Engine:   d.Engine,
 			Name:     d.Name,
 			Category: d.Category,
 			Severity: d.Severity,

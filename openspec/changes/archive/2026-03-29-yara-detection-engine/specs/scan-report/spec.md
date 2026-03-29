@@ -1,4 +1,4 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 文字表格格式輸出掃描摘要與偵測結果
 系統 SHALL 在 `format = "text"` 時，將 `ScanReport` 以人類可讀的文字表格格式寫入 `io.Writer`，包含：掃描目錄、檔案總數、威脅數、錯誤數、略過數、耗時，以及每筆偵測結果（路徑、SHA256 前 16 字元、**偵測引擎**、威脅名稱、嚴重程度、分類）。
