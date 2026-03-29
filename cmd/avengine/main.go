@@ -88,19 +88,12 @@ func main() {
 	showProgress := *output == "text" && isTerminal(os.Stderr)
 	var onProgress scanner.ProgressFunc
 	if showProgress {
-		scanOpts := scanner.Options{Dir: *dir, FollowLinks: *followLinks, MaxFileSizeB: maxBytes}
-		total, _ := scanner.CountFiles(scanOpts)
 		onProgress = func(path string, count int64) {
 			display := path
 			if len(display) > 70 {
 				display = "..." + display[len(display)-67:]
 			}
-			if total > 0 {
-				pct := count * 100 / total
-				fmt.Fprintf(os.Stderr, "\r[%d/%d] (%d%%) %s", count, total, pct, display)
-			} else {
-				fmt.Fprintf(os.Stderr, "\r[%d] %s", count, display)
-			}
+			fmt.Fprintf(os.Stderr, "\r[%d] %s", count, display)
 		}
 	}
 

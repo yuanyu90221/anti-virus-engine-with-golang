@@ -1,47 +1,43 @@
-### Requirement: Scanner exposes progress callback
-The `Options` struct SHALL include an `OnProgress func(path string, count int64)` field. The scanner SHALL invoke this callback after each file is processed, passing the file path and the cumulative count of files processed so far. If `OnProgress` is nil, the scanner SHALL behave identically to the current implementation.
+### Requirement: 掃描器公開進度回呼
+`Options` 結構應包含 `OnProgress func(path string, count int64)` 欄位。掃描器應在每個檔案處理完成後呼叫此回呼，傳入檔案路徑與目前已處理的累計檔案數。若 `OnProgress` 為 nil，掃描器的行為應與原有實作完全相同。
 
-#### Scenario: Callback invoked per file
-- **WHEN** `Options.OnProgress` is set and a scan runs over N files
-- **THEN** the callback is called exactly N times, once per processed file, with monotonically increasing count starting at 1
+#### Scenario: 每個檔案均觸發回呼
+- **WHEN** 設定了 `Options.OnProgress` 且掃描執行於 N 個檔案時
+- **THEN** 回呼被呼叫恰好 N 次，每個已處理檔案呼叫一次，累計數從 1 開始單調遞增
 
-#### Scenario: Nil callback does not panic
-- **WHEN** `Options.OnProgress` is nil
-- **THEN** the scanner completes without error and produces the same report as before
+#### Scenario: nil 回呼不發生 panic
+- **WHEN** `Options.OnProgress` 為 nil 時
+- **THEN** 掃描正常完成且不產生錯誤，並輸出與原有實作相同的報告
 
-### Requirement: Scanner provides file count utility
-The `scanner` package SHALL expose a `CountFiles(opts Options) (int64, error)` function that walks `opts.Dir` and returns the number of files that would be processed by `Scan` (applying the same FollowLinks and MaxFileSizeB filters). It SHALL return an error only if `opts.Dir` does not exist or cannot be accessed.
+### Requirement: 掃描器提供檔案計數工具函式
+`scanner` 套件應公開 `CountFiles(opts Options) (int64, error)` 函式，走訪 `opts.Dir` 並回傳 `Scan` 實際會處理的檔案數量（套用相同的 FollowLinks 與 MaxFileSizeB 過濾條件）。僅在 `opts.Dir` 不存在或無法存取時回傳錯誤。
 
-#### Scenario: Count matches scannable files
-- **WHEN** `CountFiles` is called on a directory with N eligible files
-- **THEN** it returns N (matching what `Scan` would report as TotalFiles, excluding errors and skipped files)
+#### Scenario: 計數與可掃描檔案數吻合
+- **WHEN** 對含有 N 個符合條件檔案的目錄呼叫 `CountFiles` 時
+- **THEN** 回傳 N（與 `Scan` 報告中的 TotalFiles 一致，不含錯誤與跳過的檔案）
 
-#### Scenario: Empty directory returns zero
-- **WHEN** `CountFiles` is called on an empty directory
-- **THEN** it returns 0 with no error
+#### Scenario: 空目錄回傳零
+- **WHEN** 對空目錄呼叫 `CountFiles` 時
+- **THEN** 回傳 0 且不產生錯誤
 
-### Requirement: Progress display on stderr in text mode
-In text output mode, the CLI SHALL display a single-line progress indicator on stderr during scanning. The indicator SHALL show the current file count, the total file count, the percentage complete, and the file path being processed, truncated to fit within 80 characters. Each update SHALL overwrite the previous line using a carriage return (`\r`). After scanning completes, the progress line SHALL be cleared before the report is written to stdout. If the total file count cannot be determined (zero or error), the indicator SHALL fall back to the `[N] path` format without percentage.
+### Requirement: 文字模式下於 stderr 顯示掃描進度
+在文字輸出模式下，CLI 應於掃描期間在 stderr 顯示單行進度指示。指示器應顯示目前已掃描的檔案數目，以及正在處理的檔案路徑（截斷至 80 字元以內）。每次更新應使用歸位符（`\r`）覆蓋前一行。掃描完成後，進度行應在報告輸出至 stdout 前清除。
 
-#### Scenario: Progress updates show percentage
-- **WHEN** scanning is in progress in text mode and stderr is a TTY and total > 0
-- **THEN** each file update writes `\r[<count>/<total>] (<pct>%) <truncated-path>` to stderr
+#### Scenario: 進度更新顯示檔案數目與路徑
+- **WHEN** 在文字模式且 stderr 為 TTY 時進行掃描
+- **THEN** 每個檔案更新寫入 `\r[<count>] <截斷路徑>` 至 stderr
 
-#### Scenario: Fallback when total is zero
-- **WHEN** scanning is in progress and CountFiles returns 0 or an error
-- **THEN** the indicator falls back to `\r[<count>] <truncated-path>` without percentage
+#### Scenario: 報告輸出前清除進度行
+- **WHEN** 掃描在文字模式下完成
+- **THEN** 報告寫入 stdout 前，stderr 收到清除行的序列
 
-#### Scenario: Progress cleared before report output
-- **WHEN** scanning completes in text mode
-- **THEN** stderr receives a clear-line sequence before the report is written to stdout
+### Requirement: JSON 模式或非 TTY 時不顯示進度
+當輸出格式為 `json` 或 stderr 非 TTY 時，CLI 不應在 stderr 寫入任何進度輸出。
 
-### Requirement: No progress display in JSON mode or non-TTY
-The CLI SHALL NOT write progress output to stderr when the output format is `json`, or when stderr is not a TTY.
+#### Scenario: JSON 模式抑制進度顯示
+- **WHEN** 指定 `--output json` 時
+- **THEN** stderr 不出現任何進度輸出
 
-#### Scenario: JSON mode suppresses progress
-- **WHEN** `--output json` is specified
-- **THEN** no progress output appears on stderr
-
-#### Scenario: Non-TTY suppresses progress
-- **WHEN** stderr is not a TTY (e.g. piped to a file)
-- **THEN** no progress output appears on stderr
+#### Scenario: 非 TTY 抑制進度顯示
+- **WHEN** stderr 非 TTY（例如導向至檔案）時
+- **THEN** stderr 不出現任何進度輸出
