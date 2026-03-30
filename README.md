@@ -144,8 +144,8 @@ type DetectionEngine interface {
 **`NewWithBinary(binaryPath, rulesPath string) *Engine`**：指定 binary 路徑，供測試注入假 binary。
 
 **`Inspect(ctx, filePath)`** 執行邏輯：
-- 呼叫 `yara <rulesPath> <filePath>`
-- exit 0：解析 stdout，每行 `RuleName /path` 對應一筆偵測
+- 呼叫 `yara --print-meta <rulesPath> <filePath>`
+- exit 0：解析 stdout，每行 `RuleName [key="val",...] /path` 對應一筆偵測；`severity` 從 metadata 中讀取，無此欄位時為 `"unknown"`
 - exit 1：無比對，回傳空切片（非錯誤）
 - exit 2+：回傳 error，包含 exit code 與 stderr
 - context timeout：回傳 error，子程序被終止
@@ -333,8 +333,8 @@ EOF
 # 建立測試檔案
 echo "Hello, YARA" > /tmp/sample.txt
 
-# 驗證比對（應輸出 "HelloWorld /tmp/sample.txt"）
-yara /tmp/test.yar /tmp/sample.txt
+# 驗證比對（--print-meta 模式應輸出 "HelloWorld [] /tmp/sample.txt"，含 metadata block）
+yara --print-meta /tmp/test.yar /tmp/sample.txt
 
 # 驗證無比對（應無輸出，結束碼 1）
 echo "no match here" > /tmp/clean.txt
@@ -400,7 +400,7 @@ avengine scan --dir ./targets --sigs ./signatures \
 
 路徑                          SHA256(前16)      引擎    威脅名稱          嚴重度   分類
 ------------------------------------------------------------------------
-targets/sample.bin            74c7308f2d7debda  yara    SuspiciousC2  unknown  yara
+targets/sample.bin            74c7308f2d7debda  yara    SuspiciousC2  high     yara
 targets/known.bin             91a3f84e7eef3bd8  hash    WannaCry      critical ransomware
 ```
 

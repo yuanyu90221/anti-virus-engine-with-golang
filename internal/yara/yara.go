@@ -79,7 +79,8 @@ func (e *Engine) Inspect(ctx context.Context, filePath string) ([]scanner.Engine
 	if err != nil {
 		return nil, err
 	}
-	args := append(ruleFiles, filePath)
+	args := append([]string{"--print-meta"}, ruleFiles...)
+	args = append(args, filePath)
 	cmd := exec.CommandContext(ctx, e.yaraPath, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -106,8 +107,8 @@ func (e *Engine) Inspect(ctx context.Context, filePath string) ([]scanner.Engine
 	return parseOutput(stdout.String()), nil
 }
 
-// parseOutput 解析 YARA CLI stdout，每行格式為 "RuleName /path/to/file"。
-// Category 預設為 "yara"，Severity 預設為 "unknown"（CLI 輸出不含 metadata）。
+// parseOutput 解析 YARA CLI stdout，每行格式為 "RuleName [key="val",...] /path/to/file"。
+// Category 預設為 "yara"，Severity 從 metadata 的 severity 欄位取得，找不到時為 "unknown"。
 func parseOutput(output string) []scanner.EngineDetection {
 	var results []scanner.EngineDetection
 	sc := bufio.NewScanner(strings.NewReader(output))
@@ -116,15 +117,51 @@ func parseOutput(output string) []scanner.EngineDetection {
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) != 2 {
+		name, severity := parseYaraLine(line)
+		if name == "" {
 			continue
 		}
 		results = append(results, scanner.EngineDetection{
-			Name:     parts[0],
+			Name:     name,
 			Category: "yara",
-			Severity: "unknown",
+			Severity: severity,
 		})
 	}
 	return results
+}
+
+// parseYaraLine 解析單行 YARA --print-meta 輸出。
+// 格式 A（有 metadata）: `RuleName [key="val",...] /path`
+// 格式 B（無 metadata）: `RuleName /path`
+// 回傳 rule 名稱與 severity；找不到 severity 時回傳 "unknown"。
+func parseYaraLine(line string) (name, severity string) {
+	bracketIdx := strings.Index(line, "[")
+	if bracketIdx == -1 {
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) == 0 || parts[0] == "" {
+			return "", "unknown"
+		}
+		return parts[0], "unknown"
+	}
+	name = strings.TrimSpace(line[:bracketIdx])
+	end := strings.Index(line, "]")
+	if end == -1 {
+		return name, "unknown"
+	}
+	return name, parseSeverityFromMeta(line[bracketIdx+1 : end])
+}
+
+// parseSeverityFromMeta 從 YARA metadata 字串（格式：key="val",key2="val2",...）中取得 severity 值。
+// 找不到時回傳 "unknown"。
+func parseSeverityFromMeta(meta string) string {
+	for kv := range strings.SplitSeq(meta, ",") {
+		kv = strings.TrimSpace(kv)
+		if rest, ok := strings.CutPrefix(kv, "severity="); ok {
+			val := strings.Trim(rest, `"`)
+			if val != "" {
+				return val
+			}
+		}
+	}
+	return "unknown"
 }

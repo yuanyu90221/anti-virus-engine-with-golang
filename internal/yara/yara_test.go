@@ -33,8 +33,8 @@ func writeFakeRulesFile(t *testing.T) string {
 }
 
 func TestInspect_Match(t *testing.T) {
-	// 假 binary：exit 0 並輸出一行比對結果
-	bin := writeFakeBinary(t, `echo "TestRule $2"; exit 0`)
+	// 假 binary：exit 0 並輸出含 metadata 的比對結果
+	bin := writeFakeBinary(t, `echo 'TestRule [description="test",severity="high",date="2026-01-01"] /some/file'; exit 0`)
 	eng := yara.NewWithBinary(bin, writeFakeRulesFile(t))
 
 	hits, err := eng.Inspect(context.Background(), "/some/file")
@@ -42,18 +42,32 @@ func TestInspect_Match(t *testing.T) {
 	require.Len(t, hits, 1)
 	assert.Equal(t, "TestRule", hits[0].Name)
 	assert.Equal(t, "yara", hits[0].Category)
-	assert.Equal(t, "unknown", hits[0].Severity)
+	assert.Equal(t, "high", hits[0].Severity)
 }
 
 func TestInspect_MultipleMatches(t *testing.T) {
-	bin := writeFakeBinary(t, `printf "RuleA /some/file\nRuleB /some/file\n"; exit 0`)
+	bin := writeFakeBinary(t, `printf 'RuleA [severity="high"] /some/file\nRuleB [severity="medium"] /some/file\n'; exit 0`)
 	eng := yara.NewWithBinary(bin, writeFakeRulesFile(t))
 
 	hits, err := eng.Inspect(context.Background(), "/some/file")
 	require.NoError(t, err)
 	require.Len(t, hits, 2)
 	assert.Equal(t, "RuleA", hits[0].Name)
+	assert.Equal(t, "high", hits[0].Severity)
 	assert.Equal(t, "RuleB", hits[1].Name)
+	assert.Equal(t, "medium", hits[1].Severity)
+}
+
+func TestInspect_NoSeverityMeta(t *testing.T) {
+	// 規則有 metadata 但無 severity 欄位，應 fallback 為 "unknown"
+	bin := writeFakeBinary(t, `echo 'TestRule [description="some rule",date="2026-01-01"] /some/file'; exit 0`)
+	eng := yara.NewWithBinary(bin, writeFakeRulesFile(t))
+
+	hits, err := eng.Inspect(context.Background(), "/some/file")
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	assert.Equal(t, "TestRule", hits[0].Name)
+	assert.Equal(t, "unknown", hits[0].Severity)
 }
 
 func TestInspect_NoMatch(t *testing.T) {
